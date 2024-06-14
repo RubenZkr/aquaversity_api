@@ -4,6 +4,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const userRoutes = require("./routes/users");
+const testRoutes = require("./routes/dbtester");
 const forumRoutes = require("./routes/forum");
 const cookieParser = require("cookie-parser");
 
@@ -20,8 +21,11 @@ app.use(express.json());
 // Use helmet to secure Express headers
 app.use(helmet());
 // Enable CORS with various options
+const url = "https://green-stone-03b10ff03.5.azurestaticapps.net";
+
+
 const corsOptions = {
-  origin: "https://green-stone-03b10ff03.5.azurestaticapps.net",
+  origin: url,
   credentials: true,
 };
 
@@ -41,6 +45,7 @@ app.use("/api/levels",levelsRoutes);
 app.use("/api/level",levelsRoutes);
 app.use("/api/progress",levelsRoutes);
 app.use("/api/forum",forumRoutes);
+app.use("/api/test", testRoutes);
 
 
 // Catch 404 and forward to error handler
