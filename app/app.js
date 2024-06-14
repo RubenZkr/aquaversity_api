@@ -4,12 +4,12 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const userRoutes = require("./routes/users");
-const dbRoutes = require("./routes/db");
 const forumRoutes = require("./routes/forum");
 const cookieParser = require("cookie-parser");
 
 // Import routes
 const levelsRoutes = require("./routes/levels");
+const db = require("./config/database");
 
 // Initialize express app
 const app = express();
@@ -25,6 +25,14 @@ const corsOptions = {
   credentials: true,
 };
 
+app.get('/test-db', async (req, res) => {
+  await db.query('SELECT 1 + 1 AS solution', (error, results) => {
+    if (error) {
+      return res.status(500).json({error: error.message});
+    }
+    res.json({solution: results[0].solution});
+  });
+});
 
 app.use(cors(corsOptions));
 // HTTP request logger middleware
@@ -40,7 +48,6 @@ app.use("/api/levels",levelsRoutes);
 app.use("/api/level",levelsRoutes);
 app.use("/api/progress",levelsRoutes);
 app.use("/api/forum",forumRoutes);
-app.use("/api/db", dbRoutes);
 
 
 // Catch 404 and forward to error handler
