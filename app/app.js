@@ -4,6 +4,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const bodyParser = require("body-parser");
 const userRoutes = require("./routes/users");
+const dbRoutes = require("./routes/db");
 const forumRoutes = require("./routes/forum");
 const cookieParser = require("cookie-parser");
 
@@ -23,6 +24,8 @@ const corsOptions = {
   origin: "http://localhost:5173",
   credentials: true,
 };
+
+
 app.use(cors(corsOptions));
 // HTTP request logger middleware
 app.use(morgan("dev"));
@@ -37,6 +40,8 @@ app.use("/api/levels",levelsRoutes);
 app.use("/api/level",levelsRoutes);
 app.use("/api/progress",levelsRoutes);
 app.use("/api/forum",forumRoutes);
+app.use("/api/db", dbRoutes);
+
 
 // Catch 404 and forward to error handler
 app.use(function (req, res, next) {
