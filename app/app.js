@@ -25,14 +25,7 @@ const corsOptions = {
   credentials: true,
 };
 
-app.get('/test-db', async (req, res) => {
-  await db.query('SELECT 1 + 1 AS solution', (error, results) => {
-    if (error) {
-      return res.status(500).json({error: error.message});
-    }
-    res.json({solution: results[0].solution});
-  });
-});
+
 
 app.use(cors(corsOptions));
 // HTTP request logger middleware

@@ -80,7 +80,7 @@ CREATE TABLE UserForumPost (
                                forumPostId VARCHAR(255),
                                PRIMARY KEY (userId, forumPostId),
                                FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
-                               FOREIGN KEY (forumPostId) REFERENCES ForumPost(id) ON DELETE CASCADE,
+                               FOREIGN KEY (forumPostId) REFERENCES ForumPost(id) ON DELETE CASCADE
 );
 
 CREATE TABLE level (
