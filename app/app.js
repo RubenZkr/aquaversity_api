@@ -21,7 +21,7 @@ app.use(express.json());
 app.use(helmet());
 // Enable CORS with various options
 const corsOptions = {
-  origin: "http://localhost:5173",
+  origin: "https://green-stone-03b10ff03.5.azurestaticapps.net",
   credentials: true,
 };
 
