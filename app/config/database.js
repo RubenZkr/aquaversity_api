@@ -4,10 +4,10 @@ const mysql = require("mysql2/promise");
 
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: "aquaversity-api-server.mysql.database.azure.com",
+  user: "vyaasndysq",
+  password: "B$86b04WtmiI4HXc",
+  database: "aquaversity",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
