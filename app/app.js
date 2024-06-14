@@ -10,7 +10,6 @@ const cookieParser = require("cookie-parser");
 
 // Import routes
 const levelsRoutes = require("./routes/levels");
-const db = require("./config/database");
 
 // Initialize express app
 const app = express();
@@ -21,12 +20,12 @@ app.use(express.json());
 // Use helmet to secure Express headers
 app.use(helmet());
 // Enable CORS with various options
-const url = "https://green-stone-03b10ff03.5.azurestaticapps.net";
-
 
 const corsOptions = {
-  origin: url,
+  origin: "https://green-stone-03b10ff03.5.azurestaticapps.net", // Frontend URL
   credentials: true,
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+  allowedHeaders: "Content-Type, Authorization, X-Requested-With",
 };
 
 
