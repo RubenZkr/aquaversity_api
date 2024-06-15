@@ -111,32 +111,46 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
   const { email, password } = req.body;
+
+  if (!email || !password) {
+    console.log("login failed - missing credentials");
+    return res.status(400).send({ message: "Email and password are required" });
+  }
+
   try {
-    const [users] = await db.query("SELECT * FROM users WHERE email = ?", [
-      email,
-    ]);
-    const user = users[0];
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const token = generateToken(user);
-      console.log("login successful");
-      let options = {
-        // src: https://www.saurabhmisra.dev/store-jwt-token-http-only-cookie/#:~:text=Open%20the%20client%20URL%20in,see%20the%20token%20HTTPOnly%20cookie.
-        maxAge: 1000 * 60 * 50, // expire after 15 minutes
-        httpOnly: true, // Cookie will not be exposed to client side code
-        sameSite: "none", // If client and server origins are different
-        secure: true, // use with HTTPS only
-      };
-      res.cookie("token", token, options);
-      res.status(200).json({ token });
-    } else {
-      console.log("login failed - credentials");
-      res.status(401).send({ message: "Invalid credentials" });
+    const [users] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+
+    if (users.length === 0) {
+      console.log("login failed - user not found");
+      return res.status(401).send({ message: "Invalid credentials" });
     }
+
+    const user = users[0];
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      console.log("login failed - password mismatch");
+      return res.status(401).send({ message: "Invalid credentials" });
+    }
+
+    const token = generateToken(user);
+    console.log("login successful");
+
+    const options = {
+      maxAge: 1000 * 60 * 50, // expire after 50 minutes
+      httpOnly: true, // Cookie will not be exposed to client side code
+      sameSite: "none", // If client and server origins are different
+      secure: true, // use with HTTPS only
+    };
+
+    res.cookie("token", token, options);
+    res.status(200).json({ token });
   } catch (error) {
-    console.error(error);
-    res.status(500).send({ message: error });
+    console.error("login failed - server error:", error);
+    res.status(500).send({ message: "Internal server error" });
   }
 };
+
 
 const deleteUser = async (req, res) => {
 
