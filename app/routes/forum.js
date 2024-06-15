@@ -14,7 +14,7 @@ const {
 } = require("../controllers/forumController");
 const router = express.Router();
 
-router.post("/message", authenticateToken, postMessage);
+router.post("/message", postMessage);
 router.get("/messages", getMessages);
 router.post("/message/:id/like", authenticateToken, like);
 router.get("/message/:id/comments", authenticateToken, getComments);
