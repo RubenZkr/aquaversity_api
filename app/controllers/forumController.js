@@ -1,20 +1,21 @@
 const db = require("../config/database");
 const uuid = require("uuid");
+const jwt = require("jsonwebtoken");
 // POST forum message
 const postMessage = async (req, res) => {
   try {
     const { title, text, date } = req.body.message;
 
     const token = req.cookies.token;
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let author = decoded.email
 
-    let author = req.user.email;
-    console.log(author);
     if (!token) {
       author = "Anonymous";
     }
-    console.log(author);
 
-    const writtenByUserId = req.user.id;
+    const writtenByUserId = decoded.id;
     const id = uuid.v4();
     const likes = 0;
 
