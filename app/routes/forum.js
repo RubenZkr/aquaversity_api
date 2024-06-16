@@ -12,12 +12,13 @@ const {
   getComments,
   postComment,
 } = require("../controllers/forumController");
+const verifyToken = require("../middlewares/authMiddleware");
 const router = express.Router();
 
 router.post("/message", postMessage);
 router.get("/messages", getMessages);
-router.post("/message/:id/like", authenticateToken, like);
-router.get("/message/:id/comments", authenticateToken, getComments);
-router.post("/message/:id/comment", authenticateToken, postComment);
+router.post("/message/:id/like", verifyToken, like);
+router.get("/message/:id/comments", verifyToken, getComments);
+router.post("/message/:id/comment", verifyToken, postComment);
 
 module.exports = router;

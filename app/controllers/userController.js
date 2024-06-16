@@ -155,6 +155,10 @@ const login = async (req, res) => {
 const deleteUser = async (req, res) => {
 
   const token = req.cookies.token;
+  // get id from param
+    const body = req.params;
+    const deleteId = body.id;
+    
   const {id} = jwt.verify(token, process.env.JWT_SECRET);
   // if user is admin then continue
   const [users] = await db.query("SELECT * FROM users WHERE id = ?", [id]);
@@ -164,7 +168,7 @@ const deleteUser = async (req, res) => {
   }
 
   try {
-    const [result] = await db.query("DELETE FROM users WHERE id = ?", [id]);
+    const [result] = await db.query("DELETE FROM users WHERE id = ?", [deleteId]);
     res.status(200).send({ message: "User deleted successfully" });
   } catch (error) {
     console.error(error);

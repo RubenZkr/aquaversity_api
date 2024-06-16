@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 const authenticateToken = require('../middlewares/authMiddleware');
 const db = require('../config/database');
-const { getLevels, getProgress, getAnswers, getQuestions, getExamLoggedDetails, getLoggedAnswers, getLoggedQuestions} = require("../controllers/levelController");
-
+const { getLevels, getProgress, getAnswers, getQuestions
+} = require("../controllers/levelController");
 const {
     getLevelDetails,
     getExamDetails,
-    postAnswer
+    postAnswers,
+    patchLevelContent,
+    createQuestions
 } = require("../controllers/levelController")
 const verifyToken = require("../middlewares/authMiddleware");
 
@@ -28,34 +30,18 @@ router.get('/levels', async  (req, res) => {
     }
 });
 
-router.get('/progress', authenticateToken, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        if (!user) return res.status(404).json({ message: 'User not found' });
-
-        res.json(user.progress);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
 router.get('/level/:id', getLevelDetails)
 router.get('/level/:id/Exam', getExamDetails)
-router.post('/level/:id/Exam', postAnswer)
-router.get('/level/', postAnswer)
+router.post('/level/:id/Exam', postAnswers)
 
 router.get('/level/:id/answers', getAnswers)
 router.get('/level/:id/questions', getQuestions)
 
 
-router.get('/level/:id/Exam-plus',verifyToken, getExamLoggedDetails)
-router.get('/level/:id/answers-plus', verifyToken,getLoggedAnswers)
-router.get('/level/:id/questions-plus', verifyToken, getLoggedQuestions)
-
-
-
+router.patch('/level/:id',verifyToken, patchLevelContent)
+router.post('/level/:id/questions',verifyToken, createQuestions)
 
 router.get("/all", getLevels);
-router.get("/progress", authenticateToken, getProgress);
+router.get("/progress", verifyToken, getProgress);
 
 module.exports = router;

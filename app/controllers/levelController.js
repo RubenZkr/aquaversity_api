@@ -1,39 +1,34 @@
 const db = require("../config/database");
-const jwt = require('jsonwebtoken'); 
+const jwt = require('jsonwebtoken');
+const uuid = require("uuid");
 
 const getLevelDetails = async (req, res) => {
-    try{
+    try {
         const id = req.params.id;
-        console.log(id);
 
-        if(id === null){
-            res.status(400).send({message: "Bad request"})
+        if (id === null) {
+            return res.status(400).send({ message: "Bad request" });
         }
 
         const [rows] = await db.query('SELECT * FROM level WHERE id = ?', [id]);
-        const levelData = rows[0]
+        const levelData = rows[0];
 
         if (levelData.isLockedForGuest) {
             const token = req.cookies.token;
-            
-            if(!token){
+
+            if (!token) {
                 return res.status(403).send({ message: "Access forbidden: no token provided" });
             }
-
-            try{
-                jwt.verify(token, process.env.JWT_SECRET);
-                res.status(200).send(levelData);
-            }catch (err){
-                return res.status(403).send({ message: "Access forbidden: invalid token" });
-            }       
         }
+
+        // Send the level data if all checks pass
         res.status(200).send(levelData);
-    } 
-    catch (error) {
+    } catch (error) {
         console.error(error);
-        res.status(500).send({ message: "Error could not load level" });  
+        res.status(500).send({ message: "Error could not load level" });
     }
 }
+
 
 const getExamDetails = async (req,res) => {
     try{
@@ -46,7 +41,7 @@ const getExamDetails = async (req,res) => {
 
         const [rows] = await db.query('SELECT examen_question.question, a.id, a.answer FROM examen_question INNER JOIN answer a on examen_question.id = a.questionId WHERE examen_question.levelId = ?', [levelId]);
         const examQuestionData = rows
-        
+
         if (examQuestionData.isLockedForGuest) {
             const token = req.cookies.token;
 
@@ -65,45 +60,11 @@ const getExamDetails = async (req,res) => {
     }
     catch (error){
         console.error(error);
-        res.status(500).send({ message: "Error could not load exam" });  
-    }
-}
-
-
-const getQuestions = async (req,res) => {
-    try{
-
-        const id = req.params.id;
-        const [rows] = await db.query(`SELECT q.id AS question_id, q.question, a.id AS answer_id, a.answer, a.isCorrect
-                                       FROM examen_question q
-                                                JOIN answer a ON q.id = a.questionId
-                                       WHERE q.levelId = ?`, [id]);
-        const questions = {};
-        rows.forEach(row => {
-            if (!questions[row.question_id]) {
-                questions[row.question_id] = {
-                    id: row.question_id,
-                    question: row.question,
-                    answers: []
-                };
-            }
-            questions[row.question_id].answers.push({
-                id: row.answer_id,
-                answer: row.answer,
-                isCorrect: row.isCorrect
-            });
-        });
-
-        res.status(200).send(Object.values(questions));
-        
-        
-        
-    }
-    catch (error){
-        console.error(error);
         res.status(500).send({ message: "Error could not load exam" });
     }
 }
+
+
 
 const getAnswers = async (req,res) => {
     try{
@@ -124,68 +85,49 @@ const getAnswers = async (req,res) => {
     }
 }
 
-const postAnswer = async (req,res) => {
+
+const postAnswers = async (req,res) => {
     try{
-        const answerId = req.params.id;
+        const answers = req.body.answers;
 
-        if(answerId === null){
-            res.status(400).send({message: "Bad request"})
+        const questionCount = Object.keys(answers).length;
+
+        // validate question count with the database question count per level
+        const [rows] = await db.query('SELECT COUNT(*) AS count FROM examen_question WHERE levelId = ?', [req.params.id]);
+        if (rows[0].count !== questionCount) {
+            return res.status(400).send({ message: `Invalid input: expected ${rows[0].count} answers` });
         }
 
-        const [rows] = await db.query('SELECT ExQu.levelId, a.isCorrect, l.isLockedForGuest FROM answer a INNER JOIN examen_question ExQu on a.questionId = ExQu.id INNER JOIN level l on ExQu.levelId = l.id WHERE a.id = ?', answerId)
-        const answerData = rows[0]
+        const answerIds = Object.values(answers);
+        let correctCount = 0
 
-        if(answerData.isLockedForGuest) {
-            const token = req.cookies.token;
+        for (const answerId of answerIds) {
+            const [rows] = await db.query('SELECT isCorrect FROM answer WHERE id = ?', [answerId]);
 
-            if(!token){
-                return res.status(403).send({ message: "Access forbidden: no token provided" });
+            if(rows[0].isCorrect){
+                correctCount++;
             }
 
-            try{
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                const userId = decoded.id
-                
-                //const date = new Date();
-                //const formattedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
-                console.log("DATE: ", formattedDate)
-                if(answerData.isCorrect){
-                    console.log("Answer is correct" + answerData.isCorrect)
+        }
+        let score = correctCount/questionCount * 10;
 
-                    const [rows] = await db.query('INSERT INTO completed_level (userId, levelId, completedOn) VALUES (?,?,CURRENT_DATE)', [userId, answerData.levelId])
-                    res.status(200).send({ message: true });
-                }else{
-                    res.status(200).send({ message: false });
-                }
+        // round the score
+        score = Math.round(score * 100) / 100;
 
-            }catch (err){
-                return res.status(403).send({ message: "Access forbidden: invalid token" });
-            }
-        }else{
-            const token = req.cookies.token;
-            console.log(token)
+        const levelId = req.params.id;
 
-            if(!token){
-                if (answerData.isCorrect) {
-                    res.status(200).send({ message: true });
-                }else{
-                    res.status(200).send({ message: false });
-                }
-            } else {
-                if(answerData.isCorrect){
-                    console.log("Answer is correct" + answerData.isCorrect)
-                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                    const userId = decoded.id
+        const token = req.cookies.token;
+        const userId = token ? jwt.verify(token, process.env.JWT_SECRET).id : null;
 
-                    const [rows] = await db.query('INSERT INTO completed_level (userId, levelId, completedOn) VALUES (?,?,CURRENT_DATE)', [userId, answerData.levelId])
-                    res.status(200).send({ message: true });
-                }else{
-                    res.status(200).send({ message: false });
-                }
+        if(score >= 8 && userId !== null){
+            const [rows] = await db.query('SELECT * FROM completed_level WHERE userId = ? AND levelId = ?', [userId, levelId]);
+
+            if(rows.length === 0){
+                await db.query('INSERT INTO completed_level (userId, levelId, completedOn) VALUES (?, ?, ?)', [userId, levelId, new Date()]);
             }
         }
 
-
+        res.status(200).send({score: score});
 
     }catch (error){
         console.error(error);
@@ -199,19 +141,58 @@ const postAnswer = async (req,res) => {
 
 // GET levels
 const getLevels = async (req, res) => {
-  try {
-    const [rows] = await db.query("SELECT * FROM level");
-    res.status(200).json(rows);
-  } catch (error) {
-    console.error("Error fetching level:", error);
-    res.status(500).send({ message: "Error fetching level" });
-  }
+    try {
+        const [rows] = await db.query("SELECT * FROM level ORDER BY orderNumber");
+
+        const token = req.cookies.token;
+        const userId = token ? jwt.verify(token, process.env.JWT_SECRET).id : null;
+
+        if (userId !== null) {
+            const [completedLevels] = await db.query("SELECT levelId FROM completed_level WHERE userId = ?", [userId]);
+
+            rows.forEach(row => {
+                // check if the level is completed by the user
+                if (completedLevels.some(completedLevel => completedLevel.levelId === row.id) || row.orderNumber === 1 || row.orderNumber === 2 || row.orderNumber === 3) {
+                    row.isCompleted = true;
+                } else {
+                    row.isCompleted = false;
+                }
+            });
+
+            rows.forEach((row, index) => {
+                // unlock the next level if the previous one is completed
+                if (index > 0 && rows[index - 1].isCompleted) {
+                    row.isUnlocked = true;
+                } else if (index === 0) {
+                    row.isUnlocked = true; // First level is always unlocked
+                } else {
+                    row.isUnlocked = false;
+                }
+            });
+        } else {
+            rows.forEach(row => {
+                if (row.orderNumber === 1 || row.orderNumber === 2 || row.orderNumber === 3) {
+                    row.isCompleted = true;
+                    row.isUnlocked = true;
+                } else {
+                    row.isCompleted = false;
+                    row.isUnlocked = false;
+                }
+            });
+        }
+
+        res.status(200).json(rows);
+    } catch (error) {
+        console.error("Error fetching levels:", error);
+        res.status(500).send({ message: "Error fetching levels" });
+    }
 };
 
 // GET progress
 const getProgress = async (req, res) => {
   try {
     const id = req.user.id;
+    console.log(id);
     if (id === null) {
       res.status(403).message({ message: "UnAuthorized access" });
     }
@@ -221,8 +202,9 @@ const getProgress = async (req, res) => {
     );
     console.log(rows);
     res.status(200).json(rows);
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+  } catch (error)
+  {
+    res.status(500).json({ message: "Seasda" });
   }
 };
 
@@ -234,5 +216,101 @@ const getExamLoggedDetails = async (req,res) => {
 
 }
 
+const patchLevelContent = async (req, res) => {
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-module.exports = { getLevels, getProgress, getLevelDetails, getExamDetails, postAnswer, getAnswers, getQuestions,getLoggedAnswers,getLoggedQuestions,getExamLoggedDetails};
+        //get user from db
+        const user = await db.query("SELECT * FROM users WHERE id = ?", [decoded.id]);
+
+        if (user[0].role !== "admin") {
+            return res.status(403).send({ message: "Access forbidden: not an admin" });
+        }
+        const id = req.params.id;
+        const { content } = req.body;
+        if (id === null || content === null) {
+            res.status(400).send({ message: "Bad request" });
+        }
+        await db.query("UPDATE level SET content = ? WHERE id = ?", [content, id]);
+        res.status(200).send({ message: "Level content updated successfully" });
+    } catch (error) {
+        console.error("Error updating level content:", error);
+        res.status(500).send({ message: "Server error" });
+    }
+}
+const getQuestions = async (req,res) => {
+    try{
+        const id = req.params.id;
+        const [rows] = await db.query(`SELECT q.id AS question_id, q.question, a.id AS answer_id, a.answer, a.isCorrect
+                                       FROM examen_question q
+                                                JOIN answer a ON q.id = a.questionId
+                                       WHERE q.levelId = ?`, [id]);
+        const questions = {};
+        rows.forEach(row => {
+            if (!questions[row.question_id]) {
+                questions[row.question_id] = {
+                    id: row.question_id,
+                    question: row.question,
+                    answers: []
+                };
+            }
+            questions[row.question_id].answers.push({
+                id: row.answer_id,
+                answer: row.answer
+            });
+        });
+
+        res.status(200).send(Object.values(questions));
+
+    }
+    catch (error){
+        console.error(error);
+        res.status(500).send({ message: "Error could not load exam" });
+    }
+}
+
+const createQuestions = async (req, res) => {
+    try{
+        const questions = req.body.questions;
+        const levelId = req.params.id;
+
+        if (!Array.isArray(questions) || questions.length === 0) {
+            return res.status(400).json({ error: 'Invalid input: questions must be a non-empty array' });
+        }
+
+        // get all questions and answers from the database and delete them
+        const [rows] = await db.query('SELECT id FROM examen_question WHERE levelId = ?', [levelId]);
+        const questionIds = rows.map(row => row.id);
+        if (questionIds.length > 0) {
+            await db.query(`DELETE FROM answer WHERE questionId IN (${questionIds.map(() => '?').join(',')})`, questionIds);
+            await db.query('DELETE FROM examen_question WHERE levelId = ?', [levelId]);
+        }
+
+        for (const question of questions) {
+            const questionId = uuid.v4();
+
+            await db.query('INSERT INTO examen_question (id, levelId, question) VALUES (?, ?, ?)', [questionId, levelId, question.question]);
+
+            for (const answer of question.answers) {
+                const answerId = uuid.v4();
+
+                await db.query('INSERT INTO answer (id, questionId, answer, isCorrect) VALUES (?, ?, ?, ?)', [answerId, questionId, answer.answer, answer.isCorrect]);
+            }
+        }
+        
+        return res.status(201).json({ message: 'Questions created successfully' });
+    } catch (error){
+        console.error(error);
+        return res.status(500).json({ error: 'Error creating questions' });
+    }
+
+}
+
+const editQuestions = async (req, res) => {
+
+}
+
+
+
+
+module.exports = { getLevels, getProgress, getLevelDetails, getExamDetails, postAnswers, getAnswers, getQuestions,getLoggedAnswers,getLoggedQuestions,getExamLoggedDetails,patchLevelContent,createQuestions};
