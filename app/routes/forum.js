@@ -18,7 +18,7 @@ const router = express.Router();
 router.post("/message", postMessage);
 router.get("/messages", getMessages);
 router.post("/message/:id/like", verifyToken, like);
-router.get("/message/:id/comments", verifyToken, getComments);
+router.get("/message/:id/comments", getComments);
 router.post("/message/:id/comment", verifyToken, postComment);
 
 module.exports = router;

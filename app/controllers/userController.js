@@ -1,7 +1,7 @@
 const db = require("../config/database");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const uuid = require('uuid');
+const uuid = require("uuid");
 require("dotenv").config();
 
 const hashPassword = async (password) => {
@@ -17,12 +17,11 @@ const generateToken = (user) => {
 const getLoggedInStatus = async (req, res) => {
   try {
     const token = req.cookies.token;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { role } = decoded;
     if (!token) {
-      res.status(200).send({ loggedIn: false});
+      res.status(200).send({ loggedIn: false });
     } else {
       jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        const { role } = decoded;
         if (err) {
           res.status(200).send({ loggedIn: false, role: role });
         } else {
@@ -44,24 +43,24 @@ const logout = async (req, res) => {
     console.error(error);
     res.status(500).send({ message: "Error logging out" });
   }
-}
+};
 
 const getRole = async (req, res) => {
   try {
     const token = req.cookies.token;
     if (!token) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const {id} = decoded;
-    
+    const { id } = decoded;
+
     // get user role from the database
     const [users] = await db.query("SELECT * FROM users WHERE id = ?", [id]);
     const user = users[0];
-    
+
     // Return the user role or any other relevant information
-    res.status(200).json({ role:  user.role }); // For now hard coded. we need to get this from the database
+    res.status(200).json({ role: user.role }); // For now hard coded. we need to get this from the database
   } catch (error) {
     console.error(error);
     res.status(401).send({ message: "Invalid token" });
@@ -72,16 +71,16 @@ const getUsers = async (req, res) => {
   try {
     const token = req.cookies.token;
     if (!token) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: "Unauthorized" });
     }
-    const {id} = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = jwt.verify(token, process.env.JWT_SECRET);
     // if user is admin then continue
     const [users] = await db.query("SELECT * FROM users WHERE id = ?", [id]);
     const user = users[0];
     if (user.role !== "admin") {
-        return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     const [allUsers] = await db.query("SELECT * FROM users");
     res.status(200).send(allUsers);
   } catch (error) {
@@ -96,7 +95,6 @@ const register = async (req, res) => {
     const hashedPassword = await hashPassword(password);
     // generate uuid
     const id = uuid.v4();
-
 
     const [result] = await db.query(
       "INSERT INTO users (id ,email, password) VALUES (?, ?, ?)",
@@ -118,7 +116,9 @@ const login = async (req, res) => {
   }
 
   try {
-    const [users] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+    const [users] = await db.query("SELECT * FROM users WHERE email = ?", [
+      email,
+    ]);
 
     if (users.length === 0) {
       console.log("login failed - user not found");
@@ -151,29 +151,37 @@ const login = async (req, res) => {
   }
 };
 
-
 const deleteUser = async (req, res) => {
-
   const token = req.cookies.token;
   // get id from param
-    const body = req.params;
-    const deleteId = body.id;
-    
-  const {id} = jwt.verify(token, process.env.JWT_SECRET);
+  const body = req.params;
+  const deleteId = body.id;
+
+  const { id } = jwt.verify(token, process.env.JWT_SECRET);
   // if user is admin then continue
   const [users] = await db.query("SELECT * FROM users WHERE id = ?", [id]);
   const user = users[0];
   if (user.role !== "admin") {
-    return res.status(401).json({ message: 'Unauthorized' });
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
   try {
-    const [result] = await db.query("DELETE FROM users WHERE id = ?", [deleteId]);
+    const [result] = await db.query("DELETE FROM users WHERE id = ?", [
+      deleteId,
+    ]);
     res.status(200).send({ message: "User deleted successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).send({ message: "Error deleting user" });
   }
-}
+};
 // Additional methods for password reset and profile management would be similar in handling DB and encryption tasks.
-module.exports = { register, login, logout,getUsers, getRole, getLoggedInStatus, deleteUser };
+module.exports = {
+  register,
+  login,
+  logout,
+  getUsers,
+  getRole,
+  getLoggedInStatus,
+  deleteUser,
+};
